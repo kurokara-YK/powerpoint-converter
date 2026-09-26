@@ -1,0 +1,19 @@
+[project]
+name = "powerpoint-converter"
+version = "0.1.0"
+description = "PowerPoint の資料をローカルのブラウザで見て直す。LibreOffice で描き、PPTX の XML を直接書き換える"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+powerpoint-converter = "powerpoint_converter.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["powerpoint_converter*"]
+
+[tool.setuptools.package-data]
+powerpoint_converter = ["static/*.html", "static/*.css", "static/js/*.js"]

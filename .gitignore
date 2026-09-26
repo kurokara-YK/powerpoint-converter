@@ -1,0 +1,35 @@
+# ---- 資料（個人名・所属・未発表の内容を含むので、このリポジトリには入れない） ----
+# 資料の置き場。履歴を残したいときは、data/ の中のフォルダごとに非公開のリポジトリで管理する
+/data/*
+!/data/.gitkeep
+# data/ の外に置いた資料や、書き出した PDF・画像も入れない
+*.pptx
+*.pptm
+*.potx
+*.ppt
+*.pps
+*.ppsx
+*.odp
+*.fodp
+*.key
+*.pdf
+/*.png
+/*.jpg
+
+# ---- 作業中のファイル ----
+# 書き込み途中の一時ファイル（保存は一時ファイル→置き換えで行う）
+.*.tmp
+# LibreOffice・PowerPoint のロックファイル
+.~lock.*#
+~$*
+
+# ---- 個人の設定 ----
+.claude/
+CLAUDE.local.md
+
+# ---- Python ----
+__pycache__/
+*.pyc
+*.egg-info/
+/build/
+/dist/

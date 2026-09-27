@@ -185,8 +185,18 @@ class Office:
     # ---- 描く ----
     def _export(self, ctx, src, dest: Path, w: int, h: int, translucent: bool = False) -> None:
         uno = _uno()
-        ex = ctx.ServiceManager.createInstanceWithContext("com.sun.star.drawing.GraphicExportFilter", ctx)
-        ex.setSourceDocument(src)
+        # 複数のスレッドが同時に作ると、pyuno が型の準備の済んでいない部品を返すことがある（setSourceDocument が
+        # 無いと言われる）。作るところはロックで1本ずつにし、それでも駄目なら作り直す
+        for attempt in range(3):
+            with _UNO_LOCK:
+                ex = ctx.ServiceManager.createInstanceWithContext("com.sun.star.drawing.GraphicExportFilter", ctx)
+            try:
+                ex.setSourceDocument(src)
+                break
+            except AttributeError:
+                if attempt == 2:
+                    raise
+                time.sleep(0.05)
         fd = [_pv("PixelWidth", max(1, w)), _pv("PixelHeight", max(1, h))]
         if translucent:
             fd.append(_pv("Translucent", True))

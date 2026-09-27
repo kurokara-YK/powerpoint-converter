@@ -621,11 +621,25 @@ def op_anim_trigger(pkg, args):
     return {"label": "アニメーションの開始"}
 
 
+def op_anim_timing(pkg, args):
+    part, doc = _slide(pkg, args)
+    anim.set_timing(doc, int(args["n"]), args.get("dur"), args.get("delay"))
+    pkg.touch(part)
+    return {"label": "アニメーションの長さ"}
+
+
+def op_anim_change(pkg, args):
+    part, doc = _slide(pkg, args)
+    anim.change_effect(doc, int(args["n"]), args["effect"])
+    pkg.touch(part)
+    return {"label": "アニメーションの種類"}
+
+
 OPS = {"frame": op_frame, "rotate": op_rotate, "flip": op_flip, "visibility": op_visibility, "rename": op_rename,
        "text": op_text, "style": op_style, "text_style": op_text_style,
        "delete": op_delete, "duplicate": op_duplicate, "zorder": op_zorder, "add": op_add,
        "anim_add": op_anim_add, "anim_delete": op_anim_delete, "anim_move": op_anim_move,
-       "anim_trigger": op_anim_trigger,
+       "anim_trigger": op_anim_trigger, "anim_timing": op_anim_timing, "anim_change": op_anim_change,
        **slides.OPS, **clip.OPS, **tables.OPS, **search.OPS}
 DATA_OPS = {"image": op_image, "replace_image": op_replace_image}   # 画像のバイト列を受け取る操作
 

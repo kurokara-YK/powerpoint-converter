@@ -170,7 +170,10 @@ def make_handler(app: App):
             for k, v in (extra or {}).items():
                 self.send_header(k, v)
             self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass      # ブラウザがページを再読み込み・閉じた（返事を待っていた相手がもういない）。害は無い
 
         def _json(self, obj, code: int = 200):
             self._send(code, json.dumps(obj, ensure_ascii=False).encode(), "application/json; charset=utf-8")
@@ -306,6 +309,15 @@ def serve(data: Path, start: str, deck: Path | None, port: int, open_browser: bo
     if httpd is None:
         raise SystemExit(f"ポート {port}〜{port + 19} が全部使用中")
     httpd.daemon_threads = True
+    # 接続が切れただけのエラー（ブラウザの再読み込みなど）は端末に出さない
+    _orig_handle_error = httpd.handle_error
+
+    def handle_error(request, client_address):
+        import sys
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):
+            return
+        _orig_handle_error(request, client_address)
+    httpd.handle_error = handle_error
     # LibreOffice の起動（数秒）を先に済ませておく
     threading.Thread(target=lambda: _warm(app), daemon=True).start()
     if deck:

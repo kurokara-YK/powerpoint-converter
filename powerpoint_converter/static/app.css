@@ -194,6 +194,10 @@ kbd { font-family: inherit; font-size: 11px; border: 1px solid var(--line); bord
 .anim-row .what .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .anim-row .what .tr { color: var(--muted); font-size: 11px; }
 .anim-row select { font-size: 11px; padding: 1px; max-width: 90px; }
+.anim-detail { padding: 4px 8px 6px 22px; background: var(--selbg); border-top: 1px solid var(--line); }
+.anim-detail .row { margin-bottom: 4px; }
+.anim-detail select { flex: 1; min-width: 0; font-size: 12px; }
+.anim-detail input[type=number] { width: 64px; }
 .sel-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 4px; align-items: center; padding: 3px 6px; cursor: pointer; font-size: 12px; border-bottom: 1px solid var(--line); }
 .sel-row:last-child { border-bottom: none; }
 .sel-row .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -253,4 +257,8 @@ kbd { font-family: inherit; font-size: 11px; border: 1px solid var(--line); bord
 /* アニメーションのプレビュー（スライドの上に重ねる） */
 #preview { position: absolute; left: 0; top: 0; z-index: 20; background: #fff; cursor: pointer; overflow: hidden; }
 #preview iframe { width: 100%; height: 100%; border: none; pointer-events: none; display: block; }
+#preview .bar { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px;
+  background: rgba(30,31,34,.9); color: #f2f3f5; font-size: 12px; padding: 3px 6px 3px 10px; border-radius: 16px; cursor: default; white-space: nowrap; }
+#preview .bar button { padding: 2px 8px; color: #f2f3f5; }
+#preview .bar .step { margin-right: 4px; }
 #preview .msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 6px; color: #555; font-size: 14px; background: rgba(255,255,255,.85); }

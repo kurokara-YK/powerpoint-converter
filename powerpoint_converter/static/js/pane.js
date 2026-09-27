@@ -191,7 +191,7 @@ function renderAnimPane(body) {
     h("div", { class: "note" }, sel.length ? `選んでいる ${sel.length} 個の図形に付ける` : "スライドの図形を選ぶと付けられる")));
   body.append(row(null, h("button", { class: "primary", disabled: !sm.anims.length, onclick: () => previewSlide() }, "▶ プレビュー"),
     h("button", { onclick: () => startShow(true) }, "▷ スライドショー")),
-    h("div", { class: "note", style: { marginBottom: "8px" } }, "プレビューはスライドの上で効果を順に自動で再生する（クリックか Esc で止める）。スライドショーはクリック・→ で進む。"));
+    h("div", { class: "note", style: { marginBottom: "8px" } }, "プレビューはスライドの上で効果を順に再生する。下の帯で一時停止・次へ・最初から。スライドをクリックすると1つずつ進み、最後の状態のまま止まる（Esc か ✕ で閉じる）。"));
   if (!sm.anims.length) { body.append(h("div", { class: "note" }, "このスライドにアニメーションは無い。")); return; }
   const list = h("div", { class: "anim-list" });
   const groups = [];
@@ -207,18 +207,40 @@ function renderAnimPane(body) {
     for (const e of g.items) {
       const tsel = h("select", { disabled: !ed, onclick: ev => ev.stopPropagation(), onchange: ev => op("anim_trigger", { slide: S.cur, n: e.n, trigger: ev.target.value }) },
         ...[["clickEffect", "クリック時"], ["withEffect", "同時"], ["afterEffect", "後"]].map(([v, l]) => h("option", { value: v, selected: e.trigger === v }, l)));
-      step.append(h("div", { class: "anim-row" + (S.animSel === e.n ? " sel" : ""), onclick: () => {
+      const row = h("div", { class: "anim-row" + (S.animSel === e.n ? " sel" : ""), onclick: () => {
         S.animSel = e.n; const top = topOf(e.spid); S.group = top !== e.spid ? top : null; S.sel = [e.spid]; drawSlide(); renderPane();
       } },
         h("span", { class: "dot", style: { background: CLS_COLOR[e.cls] || "#888" }, title: e.cls_label }),
-        h("div", { class: "what" }, h("div", { class: "nm" }, `${e.name}: ${e.shape}`), h("div", { class: "tr" }, `${e.cls_label} ・ ${e.trigger_label}${e.dur ? ` ・ ${e.dur} 秒` : ""}`)),
-        h("div", {}, tsel, ed ? h("button", { title: "削除", onclick: ev => { ev.stopPropagation(); op("anim_delete", { slide: S.cur, n: e.n }); } }, "✕") : null)));
+        h("div", { class: "what" }, h("div", { class: "nm" }, `${e.name}: ${e.shape}`), h("div", { class: "tr" }, `${e.cls_label} ・ ${e.trigger_label}${e.dur ? ` ・ ${e.dur} 秒` : ""}${e.delay ? ` ・ ${e.delay} 秒待つ` : ""}`)),
+        h("div", {}, tsel, ed ? h("button", { title: "削除", onclick: ev => { ev.stopPropagation(); op("anim_delete", { slide: S.cur, n: e.n }); } }, "✕") : null));
+      step.append(row);
+      if (S.animSel === e.n && ed) step.append(animDetail(e));   // 選んだ効果の種類・長さ・遅延（PowerPoint の「継続時間」「遅延」）
     }
     list.append(step);
   });
   body.append(list);
 }
 
+function animDetail(e) {
+  const stop = ev => ev.stopPropagation();
+  const kind = h("select", { onclick: stop, onchange: async ev => { if (await op("anim_change", { slide: S.cur, n: e.n, effect: ev.target.value })) previewAfterChange(); } },
+    h("option", { value: "" }, `今の種類: ${e.cls_label} ${e.name}`), ...ANIM_EFFECTS.map(([v, l]) => h("option", { value: v }, l)));
+  const instant = !(e.dur > 0.002);
+  const dur = h("input", { type: "number", step: "0.25", min: "0.05", value: instant ? "" : e.dur, disabled: instant, placeholder: "一瞬",
+    title: instant ? "アピール・クリアは一瞬の効果なので長さは無い（種類をフェードなどにすると付けられる）" : "効果の長さ（秒）", onclick: stop,
+    onchange: async ev => { const v = parseFloat(ev.target.value); if (v > 0 && await op("anim_timing", { slide: S.cur, n: e.n, dur: v })) previewAfterChange(); } });
+  const delay = h("input", { type: "number", step: "0.25", min: "0", value: e.delay || 0, title: "始まるまで待つ時間（秒）", onclick: stop,
+    onchange: async ev => { const v = parseFloat(ev.target.value); if (v >= 0 && await op("anim_timing", { slide: S.cur, n: e.n, delay: v })) previewAfterChange(); } });
+  return h("div", { class: "anim-detail", onclick: stop },
+    h("div", { class: "row" }, h("label", {}, "種類"), kind),
+    h("div", { class: "row" }, h("label", {}, "長さ"), dur, "秒"),
+    h("div", { class: "row" }, h("label", {}, "遅延"), delay, "秒"));
+}
+async function previewAfterChange() {
+  // 変えたら、描き直しを待ってからプレビューする（PowerPoint と同じ）
+  for (let i = 0; i < 40; i++) { await sleep(150); if (S.slide && S.deck.slides[S.cur]?.fp === S.slide.fp) break; }
+  previewSlide();
+}
 async function addAnim(effect, trigger = "clickEffect") {
   // 効果を付けたら、PowerPoint と同じく自動でプレビューする（描き直しを待ってから）
   const r = await op("anim_add", { slide: S.cur, ids: S.sel, effect, trigger });

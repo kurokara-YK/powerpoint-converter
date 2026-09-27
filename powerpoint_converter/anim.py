@@ -117,7 +117,8 @@ def effects(doc) -> list[dict]:
                         "spid": _target(e), "cls": cls, "cls_label": CLASS_LABEL.get(cls, cls),
                         "name": name, "trigger": c.getAttribute("nodeType") or "",
                         "trigger_label": TRIGGER_LABEL.get(c.getAttribute("nodeType"), c.getAttribute("nodeType")),
-                        "dur": round(_dur(e), 2)})
+                        "dur": round(_dur(e), 2), "delay": round(int(_cond_delay(c) or 0) / 1000, 2)
+                        if (_cond_delay(c) or "0").lstrip("-").isdigit() else 0})
     return out
 
 
@@ -467,6 +468,78 @@ def add_effect(doc, spid: int, effect: str, trigger: str = "clickEffect") -> Non
     flat = [(ep, _ctn(ep).getAttribute("nodeType")) for g in _groups(seq) for _, ep in _effect_pars(g)]
     flat.append((_effect_par(doc, spid, effect, trigger), trigger))
     _rebuild(doc, flat)
+
+
+def _flat_effects(doc) -> list:
+    seq = main_seq(doc)
+    return [ep for g in _groups(seq) for _, ep in _effect_pars(g)] if seq is not None else []
+
+
+def _scale(epar, factor: float) -> None:
+    """効果の中の動き（cBhvr の cTn）の長さと、その中の遅れを factor 倍にする。"""
+    for b in epar.getElementsByTagNameNS("*", "cBhvr"):
+        for c in kids(b, "cTn"):
+            d = c.getAttribute("dur")
+            if d.isdigit() and int(d) > 1:        # 1 ms の「表示を切り替える」だけの動きは、そのまま
+                c.setAttribute("dur", str(max(1, round(int(d) * factor))))
+            st = kid(c, "stCondLst")
+            for cond in kids(st, "cond") if st is not None else []:
+                v = cond.getAttribute("delay")
+                if v.isdigit() and int(v) > 1:
+                    cond.setAttribute("delay", str(max(1, round(int(v) * factor))))
+
+
+def _main_dur(epar) -> float:
+    """効果の長さ（秒）。1 ms の「表示を切り替える」だけの動き（最後に隠すなど）は数えない。"""
+    best = 0
+    for b in epar.getElementsByTagNameNS("*", "cBhvr"):
+        for c in kids(b, "cTn"):
+            d = c.getAttribute("dur")
+            if d.isdigit() and int(d) > 1:
+                best = max(best, int(d))
+    return best / 1000
+
+
+def set_timing(doc, n: int, dur: float | None = None, delay: float | None = None) -> None:
+    """効果の長さ（秒。PowerPoint の「継続時間」）と遅延（秒）を変える。"""
+    flat = _flat_effects(doc)
+    if not 0 <= n < len(flat):
+        raise PptxError("その効果は無い")
+    ep = flat[n]
+    if dur is not None:
+        old = _main_dur(ep)
+        if old <= 0.002:
+            raise PptxError("アピール・クリアは一瞬の効果なので、長さは付けられない（種類をフェードなどにする）")
+        _scale(ep, float(dur) / old)
+    if delay is not None:
+        c = _ctn(ep)
+        st = kid(c, "stCondLst")
+        if st is None:
+            st = P(doc, "stCondLst")
+            c.insertBefore(st, c.firstChild)
+        cs = kids(st, "cond")
+        if not cs:
+            st.appendChild(P(doc, "cond", {"delay": "0"}))
+            cs = kids(st, "cond")
+        cs[0].setAttribute("delay", str(max(0, round(float(delay) * 1000))))
+    _rebuild(doc, [(e, _ctn(e).getAttribute("nodeType")) for e in flat])   # 「直前の動作の後」の開始を計算し直す
+
+
+def change_effect(doc, n: int, effect: str) -> None:
+    """効果の種類を変える（開始のしかたと順番はそのまま）。長さは元の効果の長さを引き継ぐ。"""
+    flat = _flat_effects(doc)
+    if not 0 <= n < len(flat):
+        raise PptxError("その効果は無い")
+    old = flat[n]
+    trig = _ctn(old).getAttribute("nodeType") or "clickEffect"
+    spid = _target(old)
+    new = _effect_par(doc, spid, effect, trig)
+    old_dur = _main_dur(old)
+    old.parentNode.replaceChild(new, old)
+    if old_dur > 0.002 and _main_dur(new) > 0.002:
+        _scale(new, old_dur / _main_dur(new))
+    flat[n] = new
+    _rebuild(doc, [(e, _ctn(e).getAttribute("nodeType")) for e in flat])
 
 
 def has_other_timing(doc) -> bool:
